@@ -34,7 +34,7 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
 
     mapping(uint256 => bytes32)           public metadataHashes;
     mapping(uint256 => string)            public encryptedURIs;
-    mapping(uint256 => StrategyType)      public strategyTypes;
+    mapping(uint256 => uint8)             public strategyTypes;
     mapping(uint256 => bool)              public isComposite;
     mapping(uint256 => uint256[])         private _parentTokenIds;
     mapping(uint256 => mapping(address => bytes)) public authorizations;
@@ -88,7 +88,7 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
 
-        strategyTypes[tokenId]  = strategyType;
+        strategyTypes[tokenId]  = uint8(strategyType);
         encryptedURIs[tokenId]  = encryptedURI;
         metadataHashes[tokenId] = metadataHash;
         isComposite[tokenId]    = false;
@@ -104,7 +104,7 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
         uint256 tokenId = _nextTokenId++;
         _safeMint(msg.sender, tokenId);
 
-        strategyTypes[tokenId]  = strategyType;
+        strategyTypes[tokenId]  = uint8(strategyType);
         encryptedURIs[tokenId]  = "";
         metadataHashes[tokenId] = bytes32(0);
         isComposite[tokenId]    = false;
@@ -150,8 +150,8 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
         metadataHashes[newTokenId] = metadataHashes[tokenId];
         isComposite[newTokenId]    = isComposite[tokenId];
 
-        // Copy parent chain for composite tokens
-        uint256[] memory parents = _parentTokenIds[tokenId];
+        // Copy immediate parents only (don't flatten lineage to save gas)
+        uint256[] storage parents = _parentTokenIds[tokenId];
         for (uint256 i = 0; i < parents.length; i++) {
             _parentTokenIds[newTokenId].push(parents[i]);
         }
@@ -177,28 +177,15 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
         _safeMint(msg.sender, newTokenId);
 
         // Composite gets a special strategy type (255 = Composite)
-        // strategyTypes mapping stores uint8 so we use a sentinel value
+        strategyTypes[newTokenId]  = 255;
         encryptedURIs[newTokenId]  = compositeEncryptedURI;
         metadataHashes[newTokenId] = compositeMetadataHash;
         isComposite[newTokenId]    = true;
 
-        // Track parent lineage
+        // Track immediate parents only
+        // Reconstructing lineage can be done off-chain by traversing parents
         _parentTokenIds[newTokenId].push(tokenIdA);
         _parentTokenIds[newTokenId].push(tokenIdB);
-
-        // Carry over grandparent lineage from composite parents
-        if (isComposite[tokenIdA]) {
-            uint256[] memory parentsA = _parentTokenIds[tokenIdA];
-            for (uint256 i = 0; i < parentsA.length; i++) {
-                _parentTokenIds[newTokenId].push(parentsA[i]);
-            }
-        }
-        if (isComposite[tokenIdB]) {
-            uint256[] memory parentsB = _parentTokenIds[tokenIdB];
-            for (uint256 i = 0; i < parentsB.length; i++) {
-                _parentTokenIds[newTokenId].push(parentsB[i]);
-            }
-        }
 
         emit StrategiesMerged(tokenIdA, tokenIdB, newTokenId);
         return newTokenId;
@@ -246,7 +233,7 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
     }
 
     function getStrategyInfo(uint256 tokenId) external view returns (
-        StrategyType strategyType,
+        uint8 strategyType,
         bool composite,
         uint256[] memory parents,
         string memory encryptedURI,

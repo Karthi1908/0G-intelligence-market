@@ -43,7 +43,7 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
         type: "composite",
         parents: [token.tokenId, selectedB.tokenId],
         strategies: [token.strategyType, selectedB.strategyType],
-        createdAt: Date.now(),
+        version: "1.0",
       };
       const compositeHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(JSON.stringify(compositeMetadata)));
       const compositeURI  = `composite-${token.tokenId}-${selectedB.tokenId}`;
@@ -53,6 +53,8 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
         abi: STRATEGY_INFT_ABI,
         functionName: "merge",
         args: [BigInt(token.tokenId), BigInt(selectedB.tokenId), compositeURI, compositeHash],
+        gas: 500000n, // Explicit gas limit to bypass estimation issues
+        type: 'legacy', // Ensure legacy transaction for compatibility
       });
       setTxHash(hashData);
     } catch (err) {

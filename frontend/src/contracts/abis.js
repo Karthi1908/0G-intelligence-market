@@ -59,7 +59,7 @@ export const MARKETPLACE_ABI = parseAbi([
 
 // Contract addresses — update after deployment
 export const CONTRACT_ADDRESSES = {
-  strategyINFT:  import.meta.env.VITE_INFT_CONTRACT_ADDRESS        || "0xF6AF7ef02fc32F648249e016d3000a3dfe87bc7f",
-  marketplace:   import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS  || "0x604732faf5A924047B1f6225757a77774dA6D4aa",
-  oracle:        import.meta.env.VITE_ORACLE_CONTRACT_ADDRESS        || "0x01D754290D5456C3f9ee689F38cb7C5D1e8f6c29",
+  strategyINFT:  import.meta.env.VITE_INFT_CONTRACT_ADDRESS        || "0x61947abeDd3140d95A2447b75D213902B58eb13d",
+  marketplace:   import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS  || "0x7Ddd031a815376A8477F5e42c7B0D5275D7bb194",
+  oracle:        import.meta.env.VITE_ORACLE_CONTRACT_ADDRESS        || "0xD72fcc15709002d54FaCB324eBE5EC25fA8701F8",
 };
