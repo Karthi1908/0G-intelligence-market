@@ -183,7 +183,7 @@ async function main() {
   console.log("📋 DEPLOYMENT SUMMARY");
   console.log("=".repeat(60));
   console.log("Network:           0G Galileo Testnet");
-  console.log("Chain ID:          16601");
+  console.log("Chain ID:          16602");
   console.log("Oracle:           ", oracle.address);
   console.log("StrategyINFT:     ", inft.address);
   console.log("Marketplace:      ", marketplace.address);

@@ -69,7 +69,7 @@ export default function Marketplace({ onViewToken }) {
     owner: CONTRACT_ADDRESSES.marketplace,
     encryptedURI: "",
     listing: {
-      price: ethers.utils.parseEther("0.001"),
+      price: ethers.utils.parseEther("0.001"), // Still stored as BigNumber for compatibility with any components that use it
       seller: CONTRACT_ADDRESSES.marketplace,
       active: true
     }
@@ -99,21 +99,29 @@ export default function Marketplace({ onViewToken }) {
     if (!isConnected) return;
     setBuyingId(token.tokenId);
     try {
+      // Ensure price is native BigInt for wagmi/viem
+      const valueBigInt = BigInt(listing.price.toString());
+      const commonTxOpts = {
+        value: valueBigInt,
+        gas: 500000n,    // Explicit gas limit for 0G Testnet
+        type: 'legacy',  // Use legacy transaction for better compatibility
+      };
+
       if (token.owner === CONTRACT_ADDRESSES.marketplace) {
         await writeContractAsync({
           address: CONTRACT_ADDRESSES.strategyINFT,
           abi: STRATEGY_INFT_ABI,
           functionName: "purchaseStrategy",
-          args: [token.strategyType],
-          value: listing.price,
+          args: [token.strategyType], // strategyType is small number, wagmi handles it
+          ...commonTxOpts,
         });
       } else {
         await writeContractAsync({
           address: CONTRACT_ADDRESSES.marketplace,
           abi: MARKETPLACE_ABI,
           functionName: "buyStrategy",
-          args: [token.tokenId, MOCK_SEALED_KEY, MOCK_PROOF],
-          value: listing.price,
+          args: [BigInt(token.tokenId), MOCK_SEALED_KEY, MOCK_PROOF],
+          ...commonTxOpts,
         });
       }
       alert(`Transaction Submitted! Please wait for confirmation.`);

@@ -36,6 +36,8 @@ export default function CloneModal({ token, onClose, onSuccess, userAddress }) {
         abi: STRATEGY_INFT_ABI,
         functionName: "clone",
         args: [userAddress, BigInt(token.tokenId), MOCK_SEALED_KEY, MOCK_PROOF],
+        gas: 500000n,    // Explicit gas limit for 0G Testnet
+        type: 'legacy',  // Use legacy transaction for better compatibility
       });
       setTxHash(hashData);
     } catch (err) {
