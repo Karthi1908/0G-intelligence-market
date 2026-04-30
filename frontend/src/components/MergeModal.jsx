@@ -56,9 +56,10 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
         gas: 500000n, // Explicit gas limit to bypass estimation issues
         type: 'legacy', // Ensure legacy transaction for compatibility
       });
-      setTxHash(hashData);
-      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${hashData}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${hashData}`);
-      if (navigator.clipboard) navigator.clipboard.writeText(hashData).catch(console.error);
+      const normalizedHash = typeof hashData === "string" ? hashData : hashData?.hash ?? hashData?.transactionHash ?? String(hashData);
+      setTxHash(normalizedHash);
+      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
+      if (navigator.clipboard) navigator.clipboard.writeText(normalizedHash).catch(console.error);
     } catch (err) {
       console.error(err);
       setError(err.shortMessage || err.message);
@@ -174,6 +175,18 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
             <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
               New composite iNFT is in your wallet. It will run {metaA.name} + {metaB?.name} in parallel.
             </div>
+            {txHash && (
+              <div style={{ marginTop: "14px", fontSize: "13px" }}>
+                <a
+                  href={`https://chainscan-galileo.0g.ai/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent-gold)", textDecoration: "underline" }}
+                >
+                  View transaction on ChainScan
+                </a>
+              </div>
+            )}
             <button className="btn btn-gold btn-full" style={{ marginTop: "20px" }} onClick={onClose}>
               View My Strategies
             </button>

@@ -39,9 +39,10 @@ export default function CloneModal({ token, onClose, onSuccess, userAddress }) {
         gas: 500000n,    // Explicit gas limit for 0G Testnet
         type: 'legacy',  // Use legacy transaction for better compatibility
       });
-      setTxHash(hashData);
-      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${hashData}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${hashData}`);
-      if (navigator.clipboard) navigator.clipboard.writeText(hashData).catch(console.error);
+      const normalizedHash = typeof hashData === "string" ? hashData : hashData?.hash ?? hashData?.transactionHash ?? String(hashData);
+      setTxHash(normalizedHash);
+      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
+      if (navigator.clipboard) navigator.clipboard.writeText(normalizedHash).catch(console.error);
     } catch (err) {
       console.error(err);
       setError(err.shortMessage || err.message);
@@ -116,8 +117,15 @@ export default function CloneModal({ token, onClose, onSuccess, userAddress }) {
               New iNFT has been minted to your wallet
             </div>
             {txHash && (
-              <div style={{ fontFamily: "var(--text-mono)", fontSize: "11px", color: "var(--text-muted)", wordBreak: "break-all" }}>
-                TX: {txHash}
+              <div style={{ fontSize: "13px", marginTop: "12px" }}>
+                Transaction: <a
+                  href={`https://chainscan-galileo.0g.ai/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent-green)", textDecoration: "underline" }}
+                >
+                  {txHash}
+                </a>
               </div>
             )}
             <button className="btn btn-secondary btn-full" style={{ marginTop: "16px" }} onClick={onClose}>
