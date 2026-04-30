@@ -78,13 +78,15 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
 
     // ── ERC-7857 Core ────────────────────────────────────────────────────────
 
-    /// @notice Mint a new strategy iNFT (admin only — each of the 10 base strategies)
+    /// @notice Mint a new strategy iNFT (anybody can mint by paying the mintPrice)
     function mint(
         address to,
         StrategyType strategyType,
         string calldata encryptedURI,
         bytes32 metadataHash
-    ) external onlyOwner returns (uint256) {
+    ) external payable returns (uint256) {
+        require(msg.value >= mintPrice, "Insufficient payment");
+
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
 
@@ -92,6 +94,12 @@ contract StrategyINFT is ERC721, Ownable, ReentrancyGuard {
         encryptedURIs[tokenId]  = encryptedURI;
         metadataHashes[tokenId] = metadataHash;
         isComposite[tokenId]    = false;
+
+        // Refund excess
+        if (msg.value > mintPrice) {
+            (bool refunded, ) = payable(msg.sender).call{value: msg.value - mintPrice}("");
+            require(refunded, "Refund failed");
+        }
 
         emit StrategyMinted(tokenId, to, strategyType);
         return tokenId;

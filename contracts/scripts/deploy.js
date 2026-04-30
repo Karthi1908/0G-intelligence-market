@@ -168,7 +168,8 @@ async function main() {
       deployer.address,
       strategy.type,
       encryptedURI,
-      metadataHash
+      metadataHash,
+      { value: ethers.utils.parseEther("0.001") }
     );
     const receipt = await mintTx.wait();
     const mintEvent = receipt.events?.find((e) => e.event === "StrategyMinted");

@@ -57,6 +57,8 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
         type: 'legacy', // Ensure legacy transaction for compatibility
       });
       setTxHash(hashData);
+      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${hashData}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${hashData}`);
+      if (navigator.clipboard) navigator.clipboard.writeText(hashData).catch(console.error);
     } catch (err) {
       console.error(err);
       setError(err.shortMessage || err.message);

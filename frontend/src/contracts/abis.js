@@ -20,7 +20,7 @@ export const STRATEGY_INFT_ABI = parseAbi([
   "function symbol() view returns (string)",
 
   // Write
-  "function mint(address to, uint8 strategyType, string encryptedURI, bytes32 metadataHash) returns (uint256)",
+  "function mint(address to, uint8 strategyType, string encryptedURI, bytes32 metadataHash) payable returns (uint256)",
   "function purchaseStrategy(uint8 strategyType) payable returns (uint256)",
   "function clone(address to, uint256 tokenId, bytes sealedKey, bytes proof) returns (uint256)",
   "function merge(uint256 tokenIdA, uint256 tokenIdB, string compositeEncryptedURI, bytes32 compositeMetadataHash) returns (uint256)",
@@ -59,7 +59,7 @@ export const MARKETPLACE_ABI = parseAbi([
 
 // Contract addresses — update after deployment
 export const CONTRACT_ADDRESSES = {
-  strategyINFT:  import.meta.env.VITE_INFT_CONTRACT_ADDRESS        || "0x61947abeDd3140d95A2447b75D213902B58eb13d",
-  marketplace:   import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS  || "0x7Ddd031a815376A8477F5e42c7B0D5275D7bb194",
-  oracle:        import.meta.env.VITE_ORACLE_CONTRACT_ADDRESS        || "0xD72fcc15709002d54FaCB324eBE5EC25fA8701F8",
+  strategyINFT:  import.meta.env.VITE_INFT_CONTRACT_ADDRESS        || "0x91315edfB1a8dA67169bc704d33EBe364dCe0144",
+  marketplace:   import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS  || "0xf4c8164364eE74cD93F8845f556B3BcDEB6759d7",
+  oracle:        import.meta.env.VITE_ORACLE_CONTRACT_ADDRESS        || "0xe1048a8079c9614909721080419e7F3C0FE08DBB",
 };

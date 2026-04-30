@@ -107,8 +107,9 @@ export default function Marketplace({ onViewToken }) {
         type: 'legacy',  // Use legacy transaction for better compatibility
       };
 
+      let hashData;
       if (token.owner === CONTRACT_ADDRESSES.marketplace) {
-        await writeContractAsync({
+        hashData = await writeContractAsync({
           address: CONTRACT_ADDRESSES.strategyINFT,
           abi: STRATEGY_INFT_ABI,
           functionName: "purchaseStrategy",
@@ -116,7 +117,7 @@ export default function Marketplace({ onViewToken }) {
           ...commonTxOpts,
         });
       } else {
-        await writeContractAsync({
+        hashData = await writeContractAsync({
           address: CONTRACT_ADDRESSES.marketplace,
           abi: MARKETPLACE_ABI,
           functionName: "buyStrategy",
@@ -124,7 +125,8 @@ export default function Marketplace({ onViewToken }) {
           ...commonTxOpts,
         });
       }
-      alert(`Transaction Submitted! Please wait for confirmation.`);
+      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${hashData}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${hashData}`);
+      if (navigator.clipboard) navigator.clipboard.writeText(hashData).catch(console.error);
     } catch (err) {
       console.error(err);
       alert(`Buy failed: ${err.shortMessage || err.message}`);

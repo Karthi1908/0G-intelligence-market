@@ -3,15 +3,17 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import StrategyCard from "./StrategyCard";
 import CloneModal from "./CloneModal";
 import MergeModal from "./MergeModal";
+import MintModal from "./MintModal";
 import { CONTRACT_ADDRESSES, STRATEGY_INFT_ABI } from "../contracts/abis";
 
 export default function MyStrategies({ onViewToken }) {
   const { isConnected, address } = useAccount();
   const [cloneTarget, setCloneTarget] = useState(null);
   const [mergeTarget, setMergeTarget] = useState(null);
+  const [showMint, setShowMint]       = useState(false);
 
   // Hook 1: Get totalSupply
-  const { data: totalSupply } = useReadContract({
+  const { data: totalSupply, refetch: refetchTotalSupply } = useReadContract({
     address: CONTRACT_ADDRESSES.strategyINFT,
     abi: STRATEGY_INFT_ABI,
     functionName: "totalSupply",
@@ -32,7 +34,7 @@ export default function MyStrategies({ onViewToken }) {
     args: [id],
   }));
 
-  const { data: ownersData } = useReadContracts({
+  const { data: ownersData, refetch: refetchOwners } = useReadContracts({
     contracts: ownerOfCalls,
   });
 
@@ -54,7 +56,7 @@ export default function MyStrategies({ onViewToken }) {
     args: [id],
   }));
 
-  const { data: strategyInfos } = useReadContracts({
+  const { data: strategyInfos, refetch: refetchInfos } = useReadContracts({
     contracts: strategyInfoCalls,
   });
 
@@ -81,6 +83,12 @@ export default function MyStrategies({ onViewToken }) {
     };
   });
 
+  const refreshData = () => {
+    refetchTotalSupply();
+    refetchOwners();
+    refetchInfos();
+  };
+
   if (!isConnected) {
     return (
       <div className="section">
@@ -93,48 +101,64 @@ export default function MyStrategies({ onViewToken }) {
     );
   }
 
-  if (ownedTokens.length === 0) {
-    return (
-      <div className="section">
-        <div className="empty-state">
-          <div className="empty-icon">🧠</div>
-          <div className="empty-title">No Strategies Owned</div>
-          <div className="empty-desc">Head to the Marketplace to acquire your first iNFT trading strategy</div>
-        </div>
-      </div>
-    );
-  }
-
   const handleCloneSuccess = () => {
     setCloneTarget(null);
+    refreshData();
   };
 
   const handleMergeSuccess = () => {
     setMergeTarget(null);
+    refreshData();
+  };
+
+  const handleMintSuccess = () => {
+    setShowMint(false);
+    refreshData();
   };
 
   return (
     <div className="section">
       <div className="section-header">
-        <h2 className="section-title">
-          <span className="icon">🧬</span>
-          My Strategy iNFTs
-        </h2>
-        <div className="owned-count-badge">{ownedTokens.length} owned</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <h2 className="section-title" style={{ marginBottom: 0 }}>
+            <span className="icon">🧬</span>
+            My Strategy iNFTs
+          </h2>
+          <div className="owned-count-badge">{ownedTokens.length} owned</div>
+        </div>
+        <button className="btn btn-gold" onClick={() => setShowMint(true)}>
+          ✨ Create New Strategy
+        </button>
       </div>
 
-      <div className="strategy-grid">
-        {ownedTokens.map((token) => (
-          <StrategyCard
-            key={token.tokenId}
-            token={token}
-            isOwned={true}
-            onView={onViewToken}
-            onClone={setCloneTarget}
-            onMerge={setMergeTarget}
-          />
-        ))}
-      </div>
+      {ownedTokens.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">🧠</div>
+          <div className="empty-title">No Strategies Owned</div>
+          <div className="empty-desc"> हेड to the Marketplace or create your own iNFT strategy above</div>
+        </div>
+      ) : (
+        <div className="strategy-grid">
+          {ownedTokens.map((token) => (
+            <StrategyCard
+              key={token.tokenId}
+              token={token}
+              isOwned={true}
+              onView={onViewToken}
+              onClone={setCloneTarget}
+              onMerge={setMergeTarget}
+            />
+          ))}
+        </div>
+      )}
+
+      {showMint && (
+        <MintModal
+          onClose={() => setShowMint(false)}
+          onSuccess={handleMintSuccess}
+          userAddress={address}
+        />
+      )}
 
       {cloneTarget && (
         <CloneModal

@@ -16,7 +16,7 @@ const STRATEGIES = [
 ];
 
 // Contract address from frontend .env
-const INFT_ADDRESS = "0x61947abeDd3140d95A2447b75D213902B58eb13d";
+const INFT_ADDRESS = "0x91315edfB1a8dA67169bc704d33EBe364dCe0144";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -42,7 +42,7 @@ async function main() {
       const encryptedURI = `ipfs://strategy-${strategy.type}`;
 
       console.log(`Minting ${strategy.name} (type ${strategy.type})...`);
-      const tx = await inft.mint(deployer.address, strategy.type, encryptedURI, metadataHash);
+      const tx = await inft.mint(deployer.address, strategy.type, encryptedURI, metadataHash, { value: ethers.utils.parseEther("0.001") });
       const receipt = await tx.wait();
       
       // Find the StrategyMinted event
