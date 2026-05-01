@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { STRATEGY_METADATA } from "../utils/strategies";
 import { CONTRACT_ADDRESSES, STRATEGY_INFT_ABI } from "../contracts/abis";
 import { ethers } from "ethers";
@@ -10,25 +9,33 @@ export default function MintModal({ onClose, onSuccess, userAddress }) {
   const [txHash, setTxHash]       = useState(null);
   const [error, setError]         = useState(null);
 
-  const { data: hash, writeContractAsync } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  React.useEffect(() => {
-    if (isConfirmed) {
-      setStep("done");
-      setTimeout(() => {
-        onSuccess?.();
-      }, 2000);
+  const tryCopyToClipboard = async (text) => {
+    if (!navigator.clipboard || !document.hasFocus()) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn("Clipboard write unavailable", err);
+      return false;
     }
-  }, [isConfirmed, onSuccess]);
+  };
 
   const handleMint = async () => {
     setStep("pending");
     setError(null);
     try {
+      if (!window.ethereum) throw new Error("Wallet provider not found.");
+      
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const network = await provider.getNetwork();
+      const expectedChainId = 16602;
+      if (network.chainId !== expectedChainId) {
+        throw new Error(
+          `Wallet must be connected to 0G Galileo Testnet (chainId ${expectedChainId}), but wallet is on chainId ${network.chainId}. Please switch networks in your wallet.`,
+        );
+      }
+      
       const meta = STRATEGY_METADATA[selectedType];
       const metadataJson = JSON.stringify({
         name: meta.name,
@@ -39,22 +46,29 @@ export default function MintModal({ onClose, onSuccess, userAddress }) {
       const metadataHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(metadataJson));
       const encryptedURI = `ipfs://strategy-${selectedType}-${Date.now()}`;
 
-      const hashData = await writeContractAsync({
-        address: CONTRACT_ADDRESSES.strategyINFT,
-        abi: STRATEGY_INFT_ABI,
-        functionName: "mint",
-        args: [userAddress, selectedType, encryptedURI, metadataHash],
-        value: BigInt(ethers.utils.parseEther("0.001").toString()),
-        gas: 500000n,
-        type: 'legacy',
+      const contract = new ethers.Contract(CONTRACT_ADDRESSES.strategyINFT, STRATEGY_INFT_ABI, signer);
+      const tx = await contract.mint(userAddress, selectedType, encryptedURI, metadataHash, {
+        value: ethers.utils.parseEther("0.001"),
+        gasLimit: 500000,
       });
-      const normalizedHash = typeof hashData === "string" ? hashData : hashData?.hash ?? hashData?.transactionHash ?? String(hashData);
+
+      const normalizedHash = (tx.hash || String(tx)).trim().toLowerCase();
+      if (!normalizedHash.startsWith('0x') || normalizedHash.length !== 66) {
+        throw new Error(`Invalid tx hash: ${normalizedHash}`);
+      }
       setTxHash(normalizedHash);
-      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
-      if (navigator.clipboard) navigator.clipboard.writeText(normalizedHash).catch(console.error);
+      await tryCopyToClipboard(normalizedHash);
+      alert(`Transaction Submitted!\n\nHash: ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
+      
+      // Wait for confirmation
+      await tx.wait();
+      setStep("done");
+      setTimeout(() => {
+        onSuccess?.();
+      }, 2000);
     } catch (err) {
       console.error(err);
-      setError(err.shortMessage || err.message);
+      setError(err.reason || err.shortMessage || err.message || String(err));
       setStep("form");
     }
   };

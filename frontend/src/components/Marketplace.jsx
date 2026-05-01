@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import StrategyCard from "./StrategyCard";
 import { CONTRACT_ADDRESSES, STRATEGY_INFT_ABI, MARKETPLACE_ABI } from "../contracts/abis";
 import { ethers } from "ethers";
@@ -92,44 +92,52 @@ export default function Marketplace({ onViewToken }) {
   });
 
   // Buy handler
-  const { writeContractAsync } = useWriteContract();
   const [buyingId, setBuyingId] = useState(null);
+
+  const tryCopyToClipboard = async (text) => {
+    if (!navigator.clipboard || !document.hasFocus()) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn("Clipboard write unavailable", err);
+      return false;
+    }
+  };
 
   const handleBuy = async (token, listing) => {
     if (!isConnected) return;
     setBuyingId(token.tokenId);
     try {
-      // Ensure price is native BigInt for wagmi/viem
+      if (!window.ethereum) throw new Error("Wallet provider not found.");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
       const valueBigInt = BigInt(listing.price.toString());
-      const commonTxOpts = {
-        value: valueBigInt,
-        gas: 500000n,    // Explicit gas limit for 0G Testnet
-        type: 'legacy',  // Use legacy transaction for better compatibility
-      };
+      let tx;
 
-      let hashData;
       if (token.owner === CONTRACT_ADDRESSES.marketplace) {
-        hashData = await writeContractAsync({
-          address: CONTRACT_ADDRESSES.strategyINFT,
-          abi: STRATEGY_INFT_ABI,
-          functionName: "purchaseStrategy",
-          args: [token.strategyType], // strategyType is small number, wagmi handles it
-          ...commonTxOpts,
+        const contract = new ethers.Contract(CONTRACT_ADDRESSES.strategyINFT, STRATEGY_INFT_ABI, signer);
+        tx = await contract.purchaseStrategy(token.strategyType, {
+          value: valueBigInt,
+          gasLimit: 500000,
         });
       } else {
-        hashData = await writeContractAsync({
-          address: CONTRACT_ADDRESSES.marketplace,
-          abi: MARKETPLACE_ABI,
-          functionName: "buyStrategy",
-          args: [BigInt(token.tokenId), MOCK_SEALED_KEY, MOCK_PROOF],
-          ...commonTxOpts,
+        const contract = new ethers.Contract(CONTRACT_ADDRESSES.marketplace, MARKETPLACE_ABI, signer);
+        tx = await contract.buyStrategy(BigInt(token.tokenId), MOCK_SEALED_KEY, MOCK_PROOF, {
+          value: valueBigInt,
+          gasLimit: 500000,
         });
       }
-      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${hashData}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${hashData}`);
-      if (navigator.clipboard) navigator.clipboard.writeText(hashData).catch(console.error);
+
+      const normalizedHash = (tx.hash || String(tx)).trim().toLowerCase();
+      if (!normalizedHash.startsWith('0x') || normalizedHash.length !== 66) {
+        throw new Error(`Invalid tx hash: ${normalizedHash}`);
+      }
+      await tryCopyToClipboard(normalizedHash);
+      alert(`Transaction Submitted!\n\nHash: ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
     } catch (err) {
       console.error(err);
-      alert(`Buy failed: ${err.shortMessage || err.message}`);
+      alert(`Buy failed: ${err.shortMessage || err.message || err}`);
     } finally {
       setBuyingId(null);
     }

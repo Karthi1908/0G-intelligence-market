@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { STRATEGY_METADATA, computeSignal } from "../utils/strategies";
 import { CONTRACT_ADDRESSES, STRATEGY_INFT_ABI } from "../contracts/abis";
 import { useStrategySignal } from "../hooks/useDeribit";
@@ -13,31 +12,32 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
   const [txHash, setTxHash]         = useState(null);
   const [error, setError]           = useState(null);
 
-  const { data: hash, writeContractAsync } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const tryCopyToClipboard = async (text) => {
+    if (!navigator.clipboard || !document.hasFocus()) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn("Clipboard write unavailable", err);
+      return false;
+    }
+  };
 
   const { signal: signalA }    = useStrategySignal(token.strategyType);
   const { signal: signalB }    = useStrategySignal(selectedB?.strategyType ?? 0);
 
   const metaB = selectedB ? (STRATEGY_METADATA[selectedB.strategyType] || {}) : null;
 
-  React.useEffect(() => {
-    if (isConfirmed) {
-      setStep("done");
-      setTimeout(() => {
-        onSuccess?.();
-      }, 2000);
-    }
-  }, [isConfirmed, onSuccess]);
-
   const handleMerge = async () => {
     if (!selectedB) return;
     setStep("pending");
     setError(null);
     try {
+      if (!window.ethereum) throw new Error("Wallet provider not found.");
+      
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      
       // Create composite metadata hash
       const compositeMetadata = {
         type: "composite",
@@ -48,21 +48,28 @@ export default function MergeModal({ token, ownedTokens, onClose, onSuccess, use
       const compositeHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(JSON.stringify(compositeMetadata)));
       const compositeURI  = `composite-${token.tokenId}-${selectedB.tokenId}`;
 
-      const hashData = await writeContractAsync({
-        address: CONTRACT_ADDRESSES.strategyINFT,
-        abi: STRATEGY_INFT_ABI,
-        functionName: "merge",
-        args: [BigInt(token.tokenId), BigInt(selectedB.tokenId), compositeURI, compositeHash],
-        gas: 500000n, // Explicit gas limit to bypass estimation issues
-        type: 'legacy', // Ensure legacy transaction for compatibility
+      const contract = new ethers.Contract(CONTRACT_ADDRESSES.strategyINFT, STRATEGY_INFT_ABI, signer);
+      const tx = await contract.merge(BigInt(token.tokenId), BigInt(selectedB.tokenId), compositeURI, compositeHash, {
+        gasLimit: 500000,
       });
-      const normalizedHash = typeof hashData === "string" ? hashData : hashData?.hash ?? hashData?.transactionHash ?? String(hashData);
+
+      const normalizedHash = (tx.hash || String(tx)).trim().toLowerCase();
+      if (!normalizedHash.startsWith('0x') || normalizedHash.length !== 66) {
+        throw new Error(`Invalid tx hash: ${normalizedHash}`);
+      }
       setTxHash(normalizedHash);
-      alert(`Transaction Submitted!\n\nHash (Copied to Clipboard): ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
-      if (navigator.clipboard) navigator.clipboard.writeText(normalizedHash).catch(console.error);
+      await tryCopyToClipboard(normalizedHash);
+      alert(`Transaction Submitted!\n\nHash: ${normalizedHash}\n\nExplorer: https://chainscan-galileo.0g.ai/tx/${normalizedHash}`);
+      
+      // Wait for confirmation
+      await tx.wait();
+      setStep("done");
+      setTimeout(() => {
+        onSuccess?.();
+      }, 2000);
     } catch (err) {
       console.error(err);
-      setError(err.shortMessage || err.message);
+      setError(err.reason || err.shortMessage || err.message || String(err));
       setStep("confirm");
     }
   };
