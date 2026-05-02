@@ -35,7 +35,7 @@ export default function App() {
           <a href="/" className="navbar-brand">
             <div className="brand-icon">⬡</div>
             <div>
-              <div className="brand-name">StrategyNFT</div>
+              <div className="brand-name">0G Intelligence Market</div>
             </div>
             <span className="brand-badge">0G Chain</span>
           </a>
